@@ -110,7 +110,7 @@ namespace DockRotate
 					log(p.desc() + ".weldable(): has " + p.children.Count + " children");
 				return false;
 			}
-			int nn = p.namedAttachNodes(false).Count;
+			int nn = p.allAttachNodes().Count;
 			if (nn != 2) {
 				if (verbose)
 					log(p.desc() + ".weldable(): has " + nn + " nodes");

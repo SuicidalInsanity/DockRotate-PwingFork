@@ -20,7 +20,7 @@ namespace DockRotate
 			* Acquire (dockee)
 
 		*/
-
+		public bool forceUnlocked;
 		private ModuleDockingNode dockingNode;
 
 		public ModuleDockingNode getDockingNode()
