@@ -151,10 +151,8 @@ namespace DockRotate
 
 			string action = "";
 			if (rotCur) {
-				if (rotCur.isBraking()) {
-					log(desc(), ".enqueueRotation(): canceled, braking");
+				if (rotCur.isBraking()) 
 					return false;
-				}
 				rotCur.maxvel = speed;
 				if (SmoothMotion.isContinuous(ref angle)) {
 					if (!Mathf.Approximately(rotCur.tgt, angle)) {
@@ -177,9 +175,9 @@ namespace DockRotate
 				rotCur = r;
 				action = "added";
 			}
-			if (action != "")
-				log(desc(), String.Format(": enqueueRotation({0}, {1:F4}\u00b0, {2}\u00b0/s, {3}\u00b0/s), {4}",
-					hostAxis.desc(), rotCur.tgt, rotCur.maxvel, rotCur.vel, action));
+			//if (action != "")
+			//	log(desc(), String.Format(": enqueueRotation({0}, {1:F4}\u00b0, {2}\u00b0/s, {3}\u00b0/s), {4}",
+			//		hostAxis.desc(), rotCur.tgt, rotCur.maxvel, rotCur.vel, action));
 			return true;
 		}
 

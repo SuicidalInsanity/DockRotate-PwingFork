@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using KSP.Localization;
+using UnityEngine;
 
 namespace DockRotate
 {
@@ -60,21 +62,46 @@ namespace DockRotate
 				log(desc(), ".setupLocalAxis(" + state + "): "
 					+ "no node \"" + rotatingNodeName + "\"");
 
-				List<AttachNode> nodes = part.namedAttachNodes();
+				List<AttachNode> nodes = part.allAttachNodes();
 				for (int i = 0; i < nodes.Count; i++)
 					log(desc(), ": node[" + i + "] = " + nodes[i].desc());
 				return false;
 			}
 
 			partNodePos = rotatingNode.position;
-			partNodeAxis = rotatingNode.orientation;
-			if (verboseSetup)
-				log(desc(), ".setupLocalAxis(" + state + ") done: "
-					+ partNodeAxis + "@" + partNodePos);
-			return true;
-		}
+				partNodeAxis = rotatingNode.orientation;
+			axisTransform = part.FindModelTransforms(AxisTransform); //OK, this is working. Now to just get some QoL stuff in ModuleBaseRotate, and fix the PWingModel
+			
+            if (axisTransform.Length > 0)
+			{
+                string axisLower = Axis.ToLower();
+				switch (axisLower)
+				{
+					case "x":
+						{
+                            partNodeAxis = Vector3.right.Td(axisTransform[0], part.T());
+                            break;
+						}
+					case "y":
+						{
+                            partNodeAxis = Vector3.up.Td(axisTransform[0], part.T());
+                            break;
+						}
+					case "z":
+						{
+                            partNodeAxis = Vector3.forward.Td(axisTransform[0], part.T());
+                            break;
+						}
+				}                
+            }
+            if (verboseSetup)
+                log(desc(), ".setupLocalAxis(" + state + ") done: "
+                    + partNodeAxis + "@" + partNodePos);
+            return true;
+        }
+		Transform[] axisTransform;
 
-		protected override PartJoint findMovingJoint(bool verbose)
+        protected override PartJoint findMovingJoint(bool verbose)
 		{
 			uint prevOtherPartFlightID = otherPartFlightID;
 			otherPartFlightID = 0;

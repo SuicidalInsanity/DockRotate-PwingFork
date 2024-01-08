@@ -5,20 +5,17 @@ using System.Reflection;
 using UnityEngine;
 using KSP.Localization;
 using CompoundParts;
-
 namespace DockRotate
 {
-	public abstract class ModuleBaseRotate: PartModule,
+	public abstract class ModuleBaseRotate : PartModule,
 		IJointLockState, IResourceConsumer
 	{
 		protected const string GROUPNAME = "DockRotate";
 		protected const string GROUPLABEL = "#DCKROT_rotation";
 		protected const string DEBUGGROUP = "DockRotateDebug";
-#if DEBUG
-		protected const bool DEBUGMODE = true;
-#else
+
 		protected const bool DEBUGMODE = false;
-#endif
+
 
 		[KSPField(isPersistant = true)]
 		public int Revision = -1;
@@ -53,84 +50,90 @@ namespace DockRotate
 			guiName = "#DCKROT_angle",
 			groupName = GROUPNAME,
 			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
+			groupStartCollapsed = false,
 			guiActive = true,
 			guiActiveEditor = true
 		)]
 		public string angleInfo;
 		private static string angleInfoNA = Localizer.Format("#DCKROT_n_a");
 
-		[UI_Toggle]
-		[KSPField(
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiName = "#DCKROT_rotation",
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true
-		)]
-		public bool rotationEnabled = false;
+		public bool rotationEnabled = true;
 
-		[UI_FloatEdit(
-			incrementSlide = 0.5f, incrementSmall = 5f, incrementLarge = 30f,
-			sigFigs = 1, unit = "\u00b0",
-			minValue = 0f, maxValue = 360f
-		)]
-		[KSPField(
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true,
-			guiName = "#DCKROT_rotation_step",
-			guiUnits = "\u00b0"
-		)]
-		public float rotationStep = 15f;
+		[KSPField(groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true, guiActiveEditor = true, isPersistant = true,
+			guiName = "#DCKROT_rotation_step", guiUnits = "\u00b0")]
+		[UI_FloatRange(minValue = 0, maxValue = 360, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+		public float rotationStep = 15f; //make this the maxAngle?
 
-		[UI_FloatEdit(
-			incrementSlide = 1f, incrementSmall = 15f, incrementLarge = 180f,
-			sigFigs = 0, unit = "\u00b0/s",
-			minValue = 1, maxValue = 8f * 360f
-		)]
-		[KSPField(
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true,
-			guiName = "#DCKROT_rotation_speed",
-			guiUnits = "\u00b0/s"
-		)]
+		[KSPField(groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true, guiActiveEditor = true, isPersistant = true, guiName = "#autoLOC_8002345"), //Target Angle
+UI_FloatRange(minValue = 0, maxValue = 360, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+		public float targetAngle = 0;
+
+		[KSPField(groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true, guiActiveEditor = true, isPersistant = true, guiName = "max Rotation Angle"), //Max Rotation Angle "#autoLOC_8200055" + "#autoLOC_8200055"
+UI_FloatRange(minValue = 1, maxValue = 360, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+		public float maxAngle = 360;
+
+		[UI_FloatRange(minValue = 0, maxValue = 100, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+		[KSPField(groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true, guiActiveEditor = true,
+			isPersistant = true, guiName = "#DCKROT_rotation_speed", guiUnits = "\u00b0/s")]
 		public float rotationSpeed = 5f;
 
-		[UI_Toggle(affectSymCounterparts = UI_Scene.None)]
-		[KSPField(
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true,
-			advancedTweakable = true,
-			guiName = "#DCKROT_reverse_rotation"
-		)]
-		public bool reverseRotation = false;
+		[KSPField(groupName = GROUPNAME, groupDisplayName = GROUPLABEL,	groupStartCollapsed = false, guiActive = true,
+			guiActiveEditor = true,	isPersistant = true, advancedTweakable = true, guiName = "#DCKROT_reverse_rotation"),
+        UI_Toggle(affectSymCounterparts = UI_Scene.All)]
+        public bool reverseRotation = false;
 
-		[UI_Toggle]
-		[KSPField(
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true,
-			advancedTweakable = true,
-			guiName = "#DCKROT_flip_flop_mode"
-		)]
-		public bool flipFlopMode = false;
+		[KSPField(isPersistant = true)]
+		public bool speedController = false;
+
+		[KSPEvent(groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true,
+			guiActiveEditor = true, guiName = "SpeedController", active = true)]//Toggle Controller Enabled
+		public void ToggleSpeedController()
+		{
+			speedController = !speedController;
+			if (speedController) Events["ToggleSpeedController"].guiName = "SpeedController Enabled";
+            else Events["ToggleSpeedController"].guiName = "SpeedController Disabled";
+            Fields["minAirspeed"].guiActive = speedController;
+			Fields["minAirspeed"].guiActiveEditor = speedController;
+			Fields["maxAirspeed"].guiActive = speedController;
+			Fields["maxAirspeed"].guiActiveEditor = speedController;
+
+            Events["Rotate"].guiActive = !speedController;
+            Events["RotateClockwise"].guiActive = !speedController;
+            Events["RotateCounterclockwise"].guiActive = !speedController;
+
+            if (part == null || part.PartActionWindow == null) return;
+            using (List<Part>.Enumerator pSym = part.symmetryCounterparts.GetEnumerator())
+                while (pSym.MoveNext())
+                {
+                    if (pSym.Current == null) continue;
+                    if (pSym.Current != part && pSym.Current.vessel == vessel)
+                    {
+                        var rotor = pSym.Current.FindModuleImplementing<ModuleBaseRotate>();
+                        if (rotor == null) continue;
+						rotor.speedController = speedController;
+                        if (speedController) rotor.Events["ToggleSpeedController"].guiName = "SpeedController Enabled";
+                        else rotor.Events["ToggleSpeedController"].guiName = "SpeedController Disabled";
+                        rotor.Fields["minAirspeed"].guiActive = speedController;
+                        rotor.Fields["minAirspeed"].guiActiveEditor = speedController;
+                        rotor.Fields["maxAirspeed"].guiActive = speedController;
+                        rotor.Fields["maxAirspeed"].guiActiveEditor = speedController;
+
+                        rotor.Events["Rotate"].guiActive = !speedController;
+                        rotor.Events["RotateClockwise"].guiActive = !speedController;
+                        rotor.Events["RotateCounterclockwise"].guiActive = !speedController;                       
+                            
+                        rotor.part.PartActionWindow.UpdateWindow();
+                    }
+                }
+            part.PartActionWindow.UpdateWindow();
+		}
+
+		[KSPField(groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true, guiActiveEditor = true, isPersistant = true, guiName = "Min Airspeed"), //Min Air Speed #autoLOC_8200054" + "#autoLOC_8012003
+		UI_FloatRange(minValue = 0, maxValue = 500, stepIncrement = 10, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+		public float minAirspeed = 0;
+		[KSPField(groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true, guiActiveEditor = true, isPersistant = true, guiName = "max Airspeed"), //Max Air Speed #autoLOC_8200055" + "#autoLOC_8012003
+		UI_FloatRange(minValue = 100, maxValue = 1000, stepIncrement = 25, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+		public float maxAirspeed = 200;
 
 		[KSPField(isPersistant = true)]
 		public string soundClip = "DockRotate/DockRotateMotor";
@@ -141,133 +144,36 @@ namespace DockRotate
 		[KSPField(isPersistant = true)]
 		public float soundPitch = 1f;
 
-		[UI_Toggle]
-		[KSPField(
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			guiActive = DEBUGMODE,
-			guiActiveEditor = DEBUGMODE,
-			isPersistant = true,
-			advancedTweakable = false,
-			guiName = "#DCKROT_smart_autostruts"
-		)]
 		public bool smartAutoStruts = true;
 
-		[KSPField(
-			guiActive = DEBUGMODE,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
 		public float anglePosition;
 
 		private bool needsAlignment;
 
-		[KSPField(
-			guiActive = DEBUGMODE,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
 		public float angleVelocity;
 
-		[KSPField(
-			guiActive = DEBUGMODE,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
 		public bool angleIsMoving;
 
-#if DEBUG
-		[KSPField(
-			guiName = "#DCKROT_status",
-			guiActive = true,
-			guiActiveEditor = false,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-		public string nodeStatus = "";
-#endif
-
-#if DEBUG
-		[UI_Toggle]
-		[KSPField(
-			guiName = "Verbose Setup",
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-#endif
 		public bool verboseSetup = false;
 
-#if DEBUG
-		[UI_Toggle]
-		[KSPField(
-			guiName = "Verbose Events",
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-#endif
 		public bool verboseEvents = false;
 
-#if DEBUG
-		[KSPAxisField(
-			guiName = "AxisField",
-			guiActive = true,
-			guiActiveEditor = true,
-			isPersistant = true,
-			guiFormat = "F3",
-			axisMode = KSPAxisMode.Absolute,
-			minValue = -1f,
-			maxValue = 1f,
-			incrementalSpeed = 0.1f,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-		public float axisField = 0f;
-#endif
+		bool hasdeployed = false; //toggle direction bool, false for start pos, true for reversing from max Angle
 
-		[KSPAction(
-			guiName = "#DCKROT_enable_rotation",
-			requireFullControl = true
-		)]
-		public void EnableRotation(KSPActionParam param)
+		[KSPAction(guiName = "#autoLOC_8003282", requireFullControl = true)] //Toggle Hinge
+		public void Rotate(KSPActionParam param)
 		{
-			if (verboseEvents)
-				log(desc(), ": action " + param.desc());
-			rotationEnabled = true;
-		}
+			if (speedController) return;
+            doRotate(false, hasdeployed);
+            hasdeployed = !hasdeployed;
+        }
 
-		[KSPAction(
-			guiName = "#DCKROT_disable_rotation",
-			requireFullControl = true
-		)]
-		public void DisableRotation(KSPActionParam param)
+		[KSPEvent(guiName = "#autoLOC_8003282", groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false,
+			guiActive = true, guiActiveEditor = true, requireFullControl = true)] //Toggle Hinge
+		public void Rotate()
 		{
-			if (verboseEvents)
-				log(desc(), ": action " + param.desc());
-			rotationEnabled = false;
-		}
-
-		[KSPAction(
-			guiName = "#DCKROT_toggle_rotation",
-			requireFullControl = true
-		)]
-		public void ToggleRotation(KSPActionParam param)
-		{
-			if (verboseEvents)
-				log(desc(), ": action " + param.desc());
-			rotationEnabled = !rotationEnabled;
+			doRotate(true, hasdeployed);
+			hasdeployed = !hasdeployed;
 		}
 
 		[KSPAction(
@@ -276,27 +182,21 @@ namespace DockRotate
 		)]
 		public void RotateClockwise(KSPActionParam param)
 		{
-			if (verboseEvents)
+            if (speedController) return;
+            if (verboseEvents)
 				log(desc(), ": action " + param.desc());
 			if (reverseActionRotationKey()) {
-				doRotateCounterclockwise();
+				doRotateCounterclockwise(false);
 			} else {
-				doRotateClockwise();
+				doRotateClockwise(false);
 			}
 		}
 
-		[KSPEvent(
-			guiName = "#DCKROT_rotate_clockwise",
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = false,
-			guiActiveEditor = false,
-			requireFullControl = true
-		)]
+		[KSPEvent(guiName = "#DCKROT_rotate_clockwise",	groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false,
+			guiActive = true, guiActiveEditor = true, requireFullControl = true)]
 		public void RotateClockwise()
 		{
-			doRotateClockwise();
+			doRotateClockwise(true);
 		}
 
 		[KSPAction(
@@ -305,218 +205,49 @@ namespace DockRotate
 		)]
 		public void RotateCounterclockwise(KSPActionParam param)
 		{
-			if (verboseEvents)
+            if (speedController) return;
+            if (verboseEvents)
 				log(desc(), ": action " + param.desc());
 			if (reverseActionRotationKey()) {
-				doRotateClockwise();
+				doRotateClockwise(false);
 			} else {
-				doRotateCounterclockwise();
+				doRotateCounterclockwise(false);
 			}
 		}
 
-		[KSPEvent(
-			guiName = "#DCKROT_rotate_counterclockwise",
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = false,
-			guiActiveEditor = false,
-			requireFullControl = true
-		)]
+		[KSPEvent(guiName = "#DCKROT_rotate_counterclockwise", groupName = GROUPNAME, groupDisplayName = GROUPLABEL, groupStartCollapsed = false, guiActive = true,
+			guiActiveEditor = true, requireFullControl = true)]
 		public void RotateCounterclockwise()
 		{
-			doRotateCounterclockwise();
+			doRotateCounterclockwise(true);
 		}
 
-		[KSPAction(
-			guiName = "#DCKROT_rotate_to_snap",
-			requireFullControl = true
-		)]
-		public void RotateToSnap(KSPActionParam param)
-		{
-			if (verboseEvents)
-				log(desc(), ": action " + param.desc());
-			doRotateToSnap();
-		}
-
-		[KSPEvent(
-			guiName = "#DCKROT_rotate_to_snap",
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = false,
-			guiActiveEditor = false,
-			requireFullControl = true
-		)]
-		public void RotateToSnap()
-		{
-			doRotateToSnap();
-		}
-
-		[KSPAction(
-			guiName = "#DCKROT_stop_rotation",
-			requireFullControl = true
-		)]
-		public void StopRotation(KSPActionParam param)
-		{
-			if (verboseEvents)
-				log(desc(), ": action " + param.desc());
-			doStopRotation();
-		}
-
-		private BaseEvent StopRotationEvent;
-		[KSPEvent(
-			guiName = "#DCKROT_stop_rotation",
-			groupName = GROUPNAME,
-			groupDisplayName = GROUPLABEL,
-			groupStartCollapsed = true,
-			guiActive = false,
-			guiActiveEditor = false,
-			requireFullControl = true
-		)]
-		public void StopRotation()
-		{
-			doStopRotation();
-		}
-
-#if DEBUG
-		[UI_Toggle]
-#endif
-		[KSPField(
-			guiName = "autoSnap",
-			isPersistant = true,
-			guiActive = DEBUGMODE,
-			guiActiveEditor = DEBUGMODE,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
 		public bool autoSnap = false;
 
-#if DEBUG
-		[UI_Toggle]
-#endif
-		[KSPField(
-			guiName = "hideCommands",
-			isPersistant = true,
-			guiActive = DEBUGMODE,
-			guiActiveEditor = DEBUGMODE,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
 		public bool hideCommands = false;
 
-#if DEBUG
-		BaseEvent ToggleAutoStrutDisplayEvent;
-		[KSPEvent(
-			guiName = "Toggle Autostrut Display",
-			guiActive = true,
-			guiActiveEditor = true,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-		public void ToggleAutoStrutDisplay()
-		{
-			PhysicsGlobals.AutoStrutDisplay = !PhysicsGlobals.AutoStrutDisplay;
-			if (HighLogic.LoadedSceneIsEditor)
-				GameEvents.onEditorPartEvent.Fire(ConstructionEventType.PartTweaked, part);
-		}
-
-		[KSPEvent(
-			guiActive = true,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-		public void DumpToLog()
-		{
-			string d = desc(true);
-			log(d, ": BEGIN DUMP");
-
-			List<AttachNode> nodes = part.namedAttachNodes();
-			string nodeHelp = ": available nodes:";
-			for (int i = 0; i < nodes.Count; i++)
-				if (nodes[i] != null)
-					nodeHelp += " \"" + nodes[i].id + "\"";
-			log(d, nodeHelp);
-
-			dumpExtra();
-
-			if (hasJointMotion && jointMotion.joint)
-				jointMotion.joint.dump();
-			else
-				log(d, ": no jointMotion");
-
-			log(d, ": END DUMP");
-		}
-
-		public virtual void dumpExtra()
-		{
-		}
-
-		[KSPEvent(
-			guiName = "Cycle Autostruts",
-			guiActive = true,
-			guiActiveEditor = true,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-		public void CycleAutoStruts()
-		{
-			if (vessel)
-				vessel.CycleAllAutoStrut();
-		}
-
-		private BaseEvent ToggleTraceEventsEvent;
-		[KSPEvent(
-			guiName = "Toggle Trace Events",
-			guiActive = true,
-			guiActiveEditor = true,
-			groupName = DEBUGGROUP,
-			groupDisplayName = DEBUGGROUP,
-			groupStartCollapsed = true
-		)]
-		public void ToggleTraceEvents()
-		{
-			GameEvents.debugEvents = !GameEvents.debugEvents;
-		}
-#endif
-
-		public void doRotateClockwise()
+		public void doRotateClockwise(bool calledByButton)
 		{
 			if (!canStartRotation(true))
 				return;
-			if (!enqueueRotation(step(), speed()))
+			if (!enqueueRotation(step(), speed(), 0, calledByButton))
 				return;
-			if (flipFlopMode)
-				reverseRotation = !reverseRotation;
 		}
 
-		public void doRotateCounterclockwise()
+		public void doRotateCounterclockwise(bool calledByButton)
 		{
 			if (!canStartRotation(true))
 				return;
-			if (!enqueueRotation(-step(), speed()))
+			if (!enqueueRotation(-step(), speed(), 0, calledByButton))
 				return;
-			if (flipFlopMode)
-				reverseRotation = !reverseRotation;
 		}
 
-		public void doRotateToSnap()
+		public void doRotate(bool calledByButton, bool rotateCCW)
 		{
-			if (!canStartRotation(true, true))
+			if (!canStartRotation(true))
 				return;
-			enqueueRotationToSnap(rotationStep, speed());
-		}
-
-		public void doStopRotation()
-		{
-			JointMotionObj cr = currentRotation();
-			if (cr)
-				cr.brake();
+			if (!enqueueRotation(maxAngle * (rotateCCW ? -1 : 1) * (reverseRotation ? -1 : 1), speed(), 0, calledByButton))
+				return;
 		}
 
 		protected bool reverseActionRotationKey()
@@ -524,11 +255,9 @@ namespace DockRotate
 			return GameSettings.MODIFIER_KEY.GetKey();
 		}
 
-		public bool forceUnlocked = false;
-
 		public bool IsJointUnlocked()
 		{
-			bool ret = forceUnlocked || currentRotation();
+			bool ret = currentRotation();
 			if (verboseEvents || ret)
 				log(desc(), ".IsJointUnlocked() is " + ret);
 			return ret;
@@ -560,6 +289,14 @@ namespace DockRotate
 
 		protected Vector3 partNodePos; // node position, relative to part
 		protected Vector3 partNodeAxis; // node rotation axis, relative to part
+
+		[KSPField(isPersistant = true)]
+		public string Axis = "Z";
+		[KSPField(isPersistant = true)]
+		public string AxisTransform = "";
+
+		// if this works, see about slaving ModuleNodeRotate to ModuleTurret/ have a pair of parts/part with paired MNR modules, each with a different axis, and use ModuleTurret's axis to target check stuff to send the proper 
+		// target angle to each module, set degrees per second to turret rotate speed
 
 		// localized info cache
 		protected string storedModuleDisplayName = "";
@@ -673,13 +410,12 @@ namespace DockRotate
 
 			jointMotion = null;
 			hasJointMotion = false;
-			forceUnlocked = false;
 			nodeRole = "None";
 			anglePosition = rotationAngle();
 			angleVelocity = 0f;
 			angleIsMoving = false;
 			needsAlignment = false;
-			enabled = false;
+			//enabled = false;
 			stagingEnabled = false;
 
 			if (!part || !vessel || !setupLocalAxisDone) {
@@ -736,11 +472,11 @@ namespace DockRotate
 
 			log(desc(), ".doSetup(): joint " + (hasJointMotion ? jointMotion.joint.desc() : "null"));
 
-			setupGroup();
+			//setupGroup();
 
 			setupDoneAt = Time.frameCount;
 
-			enabled = hasJointMotion;
+			//enabled = hasJointMotion;
 		}
 
 		public IEnumerator doSetupDelayed(bool onLaunch)
@@ -906,7 +642,7 @@ namespace DockRotate
 				angleInfo = String.Format("{0:+0.00;-0.00;0.00}\u00b0", angle);
 			}
 
-			checkGuiActive();
+			//checkGuiActive();
 		}
 
 		public void RightBeforeStructureChange()
@@ -994,10 +730,15 @@ namespace DockRotate
 			// F: show when needsAlignment
 			{ "nodeRole", "S" },
 			{ "rotationStep", "S" },
+			{ "targetAngle", "S" },
+			{ "maxAngle", "S" },
 			{ "rotationSpeed", "S" },
+			{ "speedController","C" },
+			{ "minAirspeed","S" },
+			{ "maxAirspeed","S" },
 			{ "reverseRotation", "S" },
-			{ "flipFlopMode", "S" },
 			{ "smartAutoStruts", "SD" },
+			{ "Rotate", "C" },
 			{ "RotateClockwise", "C" },
 			{ "RotateCounterclockwise", "C" },
 			{ "RotateToSnap", "CF" },
@@ -1029,12 +770,6 @@ namespace DockRotate
 				ii.fld = Fields[n];
 				ii.evt = Events[n];
 			}
-
-			StopRotationEvent = Events["StopRotation"];
-#if DEBUG
-			ToggleAutoStrutDisplayEvent = Events["ToggleAutoStrutDisplay"];
-			ToggleTraceEventsEvent = Events["ToggleTraceEvents"];
-#endif
 		}
 
 		private void checkGuiActive()
@@ -1055,20 +790,6 @@ namespace DockRotate
 						ii.evt.guiActive = true;
 				}
 			}
-
-			if (StopRotationEvent != null)
-				StopRotationEvent.guiActive = currentRotation();
-
-#if DEBUG
-			if (ToggleAutoStrutDisplayEvent != null)
-				ToggleAutoStrutDisplayEvent.guiName = PhysicsGlobals.AutoStrutDisplay ?
-					"Hide Autostruts" : "Show Autostruts";
-
-			if (ToggleTraceEventsEvent != null)
-				ToggleTraceEventsEvent.guiName = GameEvents.debugEvents ?
-					"Stop Event Trace" : "Start Event Trace";
-#endif
-
 			if (part.PartActionWindow != null)
 				setupGroup();
 		}
@@ -1105,6 +826,35 @@ namespace DockRotate
 
 		private bool justLaunched = false;
 
+		public void Start()
+		{
+            UI_FloatRange angle = (UI_FloatRange)Fields["targetAngle"].uiControlEditor;
+            angle.onFieldChanged = onTargetAngleUpdated;
+            angle.maxValue = maxAngle;
+            UI_FloatRange angleFlt = (UI_FloatRange)Fields["targetAngle"].uiControlFlight;
+            angleFlt.onFieldChanged = onTargetAngleUpdated;
+            angleFlt.maxValue = maxAngle;
+            var angleCap = (UI_FloatRange)Fields["maxAngle"].uiControlEditor;
+            angleCap.onFieldChanged = clampFields;
+            angleCap = (UI_FloatRange)Fields["maxAngle"].uiControlFlight;
+            angleCap.onFieldChanged = clampFields;
+            var minAS = (UI_FloatRange)Fields["minAirspeed"].uiControlEditor;
+            minAS.onFieldChanged = clampFields;
+            minAS = (UI_FloatRange)Fields["minAirspeed"].uiControlFlight;
+            minAS.onFieldChanged = clampFields;
+            var maxAS = (UI_FloatRange)Fields["maxAirspeed"].uiControlEditor;
+            maxAS.onFieldChanged = clampFields;
+            maxAS = (UI_FloatRange)Fields["maxAirspeed"].uiControlFlight;
+            maxAS.onFieldChanged = clampFields;
+            ClampFields("maxAngle");
+            ClampFields("minAirspeed");
+            ClampFields("maxAirspeed");
+
+            Fields["minAirspeed"].guiActive = speedController;
+            Fields["minAirspeed"].guiActiveEditor = speedController;
+            Fields["maxAirspeed"].guiActive = speedController;
+            Fields["maxAirspeed"].guiActiveEditor = speedController;
+        }
 		public override void OnStart(StartState state)
 		{
 #if !DEBUG
@@ -1121,7 +871,7 @@ namespace DockRotate
 
 			setupLocalAxisDone = setupLocalAxis(state);
 
-			setupGuiActive();
+			//setupGuiActive();
 
 			setEvents(true);
 			if (state == StartState.Editor) {
@@ -1135,9 +885,70 @@ namespace DockRotate
 				log(desc(), ".OnStart(" + state + ") with no vessel");
 			}
 
-			checkGuiActive();
+			//checkGuiActive();
 		}
 
+		public void onTargetAngleUpdated(BaseField field, object obj)
+		{
+			if (targetAngle - Mathf.Abs(anglePosition) == 0) return;
+			//enqueueRotation((targetAngle - Mathf.Abs(currentAngle)) * (reverseRotation ? -1 : 1), speed(), 0, !speedController);
+			StartCoroutine(TargetAngleUpdate());
+			//Debug.Log($"[SPDCtrlDebug] targetAngle: {targetAngle.ToString("0.00")}; anglePosition: {Mathf.Abs(anglePosition).ToString("0.00")}; currentAngle: {currentAngle}");
+		}
+        IEnumerator TargetAngleUpdate()
+        {
+            yield return new WaitForSeconds(0.25f);
+            enqueueRotation((targetAngle - Mathf.Abs(currentAngle)) * (reverseRotation ? -1 : 1), speed(), 0, !speedController);
+        }
+        public void clampFields(BaseField field, object obj)
+		{
+			ClampFields(field.name);
+		}
+		public void ClampFields(string fieldName)
+		{
+			switch (fieldName)
+			{
+				case "maxAngle":
+					{
+						var angle = (UI_FloatRange)Fields["targetAngle"].uiControlEditor;
+						angle.maxValue = maxAngle;
+                        angle = (UI_FloatRange)Fields["targetAngle"].uiControlFlight;
+                        angle.maxValue = maxAngle;
+                        if (targetAngle > maxAngle) targetAngle = maxAngle;
+						var step = (UI_FloatRange)Fields["rotationStep"].uiControlEditor;
+						step.maxValue = maxAngle;
+                        step = (UI_FloatRange)Fields["rotationStep"].uiControlFlight;
+                        step.maxValue = maxAngle;
+                        if (rotationStep > maxAngle) rotationStep = maxAngle;
+						break;
+					}
+				case "minAirspeed":
+					{
+						UI_FloatRange max = (HighLogic.LoadedSceneIsFlight ? (UI_FloatRange)Fields["maxAirspeed"].uiControlFlight : (UI_FloatRange)Fields["maxAirspeed"].uiControlEditor);
+						if (minAirspeed >= 100)
+						{
+							max.minValue = minAirspeed + 1;
+							if (maxAirspeed < minAirspeed) maxAirspeed = minAirspeed + 1;
+						}
+						if (minAirspeed < 100 && max.minValue > 100) max.minValue = 100;
+                        break;
+					}
+				case "maxAirspeed":
+					{
+                        UI_FloatRange min = (HighLogic.LoadedSceneIsFlight ? (UI_FloatRange)Fields["minAirspeed"].uiControlFlight : (UI_FloatRange)Fields["minAirspeed"].uiControlEditor);
+                        if (maxAirspeed > 500 && min.maxValue < 500) min.maxValue = 500;
+						if (maxAirspeed <= 500)
+						{
+							min.maxValue = maxAirspeed - 1;
+							if (maxAirspeed < minAirspeed) minAirspeed = maxAirspeed - 1;
+						}
+						break;
+					}
+				default:
+					Debug.LogError($"[ModuleBaseRotate]: Invalid field name {fieldName} in ClampFields.");
+					break;
+			}
+		}
 		public override void OnUpdate()
 		{
 			base.OnUpdate();
@@ -1157,8 +968,8 @@ namespace DockRotate
 			bool updfrm = ((Time.frameCount + part.flightID) & 3) == 0;
 			if (updfrm || cr)
 				updateStatus(cr);
-			if (updfrm)
-				checkGuiActive();
+			//if (updfrm)
+				//checkGuiActive();
 		}
 
 		public virtual void OnDestroy()
@@ -1168,30 +979,20 @@ namespace DockRotate
 
 		protected virtual void updateStatus(JointMotionObj cr)
 		{
-			string OT = hasJointMotion && jointMotion.joint.isOffTree() ? " OT" : "";
 			if (cr) {
 				angleInfo = String.Format(
-					"{0:+0.00;-0.00;0.00}\u00b0 > {1:+0.00;-0.00;0.00}\u00b0 ({2:+0.00;-0.00;0.00}\u00b0/s){3}{4}",
+					"{0:+0.00;-0.00;0.00}\u00b0 > {1:+0.00;-0.00;0.00}\u00b0 ({2:+0.00;-0.00;0.00}\u00b0/s){3}",
 					anglePosition, jointMotion.rotationTarget(),
-					cr.vel, (jointMotion.controller == this ? " CTL" : ""), OT);
+					cr.vel, (jointMotion.controller == this ? " CTL" : ""));
 			} else {
 				if (float.IsNaN(anglePosition)) {
 					angleInfo = angleInfoNA;
 				} else {
 					angleInfo = String.Format(
-						"{0:+0.00;-0.00;0.00}\u00b0 ({1:+0.0000;-0.0000;0.0000}\u00b0\u0394{2})",
-						anglePosition, dynamicDeltaAngle(), OT);
+						"{0:+0.00;-0.00;0.00}\u00b0 ({1:+0.0000;-0.0000;0.0000}\u00b0\u0394)",
+						anglePosition, dynamicDeltaAngle());
 				}
 			}
-
-#if DEBUG
-			int nJoints = hasJointMotion ? jointMotion.joint.joints.Count : 0;
-			nodeStatus = part.flightID + ":" + nodeRole + "[" + nJoints + "]";
-			if (frozenFlag)
-				nodeStatus += " [F]";
-			if (cr)
-				nodeStatus += " " + cr.pos + "\u00b0 -> " + cr.tgt + "\u00b0";
-#endif
 		}
 
 		protected virtual bool canStartRotation(bool verbose, bool ignoreDisabled = false)
@@ -1280,12 +1081,40 @@ namespace DockRotate
 
 		protected bool enqueueRotation(Vector3 frozen)
 		{
-			return enqueueRotation(frozen[0], frozen[1], frozen[2]);
+			return enqueueRotation(frozen[0], frozen[1], frozen[2], false);
 		}
 
-		protected bool enqueueRotation(float angle, float speed, float startSpeed = 0f)
+        [KSPField(isPersistant = true, guiActive = true, guiName = "currentAngle", guiActiveEditor = true), UI_Label(affectSymCounterparts = UI_Scene.None, scene = UI_Scene.None)]//Weapon Name 
+        public float currentAngle = 0;
+
+        protected bool enqueueRotation(float angle, float speed, float startSpeed = 0f, bool doSymmetry = false) //angle is target angle to rotate to
 		{
-			if (HighLogic.LoadedSceneIsEditor) {
+			if (reverseRotation) //something is resetting currentAngle to 0 when reverseRotation, which is causing issues with the targetAngle rotation process
+			{
+                if (currentAngle + angle > 0)
+                {
+                    angle -= (currentAngle + angle);
+                }
+                if (currentAngle + angle < -maxAngle)  //clamp rotation to specified min/max angle
+                {
+                    angle = -currentAngle;
+                }
+            }
+			else
+			{
+				if (currentAngle + angle > maxAngle)
+				{
+					angle -= (currentAngle + angle) - maxAngle;
+				}
+				if (currentAngle + angle < 0) //clamp rotation to specified min/max angle
+				{
+					angle = -currentAngle; //null to zero to not exceed angle limit
+                }
+            }
+            currentAngle += angle;
+			if (maxAngle > 359 && currentAngle * (reverseRotation ? -1 : 1) > 359) currentAngle = 0;//reset in ase of 360deg rotation
+            if (HighLogic.LoadedSceneIsEditor)
+			{
 				log(desc(), ".enqueueRotation(): " + angle + "\u00b0 in editor");
 
 				Part host = findHostPartInEditor(false);
@@ -1295,7 +1124,7 @@ namespace DockRotate
 				Vector3 axis = host == part ? -partNodeAxis : partNodeAxis;
 				axis = axis.Td(part.T(), null);
 				Vector3 pos = partNodePos.Tp(part.T(), null);
-				Quaternion rot = axis.rotation(angle);
+				Quaternion rot = axis.rotation(angle); //this is from wherever the part currently is oriented; need a constant/base quaternion taken at start for what rest orientation should be
 
 				Transform t = host.transform;
 				t.SetPositionAndRotation(rot * (t.position - pos) + pos,
@@ -1303,34 +1132,46 @@ namespace DockRotate
 
 				GameEvents.onEditorPartEvent.Fire(ConstructionEventType.PartRotated, host);
 				GameEvents.onEditorPartEvent.Fire(ConstructionEventType.PartTweaked, host);
+				if (doSymmetry)
+                {
+                    using (List<Part>.Enumerator pSym = part.symmetryCounterparts.GetEnumerator())
+                        while (pSym.MoveNext())
+                        {
+                            if (pSym.Current == null) continue;
+                            if (pSym.Current != part && pSym.Current.vessel == vessel)
+                            {
+                                var rotor = pSym.Current.FindModuleImplementing<ModuleBaseRotate>();
+                                if (rotor == null) continue;
+								rotor.enqueueRotation(angle, speed, 0, false);
+                            }
+                        }
+                }
 				return true;
 			}
 
-			if (!hasJointMotion) {
+			if (!hasJointMotion)
+			{
 				log(desc(), ".enqueueRotation(): no rotating joint, skipped");
 				return false;
 			}
-			enabled = true;
-			return jointMotion.enqueueRotation(this, angle, speed, startSpeed);
-		}
-
-		protected void enqueueRotationToSnap(float snap, float speed)
-		{
-			if (snap < 0.1f)
-				snap = 15f;
-
-			if (HighLogic.LoadedSceneIsEditor) {
-				float a = rotationAngle();
-				if (float.IsNaN(a))
-					return;
-				float f = snap * Mathf.Floor(a / snap + 0.5f);
-				enqueueRotation(f - a, speed);
-				return;
+			//enabled = true;
+			
+			if (doSymmetry) 
+			{
+				using (List<Part>.Enumerator pSym = part.symmetryCounterparts.GetEnumerator())
+					while (pSym.MoveNext())
+					{
+						if (pSym.Current == null) continue;
+						if (pSym.Current != part && pSym.Current.vessel == vessel)
+						{
+							var rotor = pSym.Current.FindModuleImplementing<ModuleBaseRotate>();
+							if (rotor == null) continue;
+							rotor.jointMotion.enqueueRotation(rotor, angle, speed, startSpeed);
+						}
+                    }
 			}
-
-			if (!hasJointMotion)
-				return;
-			enqueueRotation(jointMotion.angleToSnap(snap), speed);
+			
+			return jointMotion.enqueueRotation(this, angle, speed, startSpeed);
 		}
 
 		protected void freezeCurrentRotation(string msg, bool keepSpeed)
@@ -1408,17 +1249,35 @@ namespace DockRotate
 
 		public void FixedUpdate()
 		{
-			if (setupDone && HighLogic.LoadedSceneIsFlight)
-				checkFrozenRotation();
+			if (!HighLogic.LoadedSceneIsFlight) return;
 
-			if (lastUsefulFixedUpdate < setupDoneAt) {
+			if(setupDone) checkFrozenRotation();
+			if (speedController && this.part.vessel.situation != Vessel.Situations.PRELAUNCH)
+			{
+				if (vessel.speed > minAirspeed && vessel.speed < maxAirspeed)
+				{
+					float controllerAngle = Mathf.Clamp(maxAngle / (maxAirspeed - minAirspeed + 0.001f) * ((float)vessel.speed - minAirspeed), 0, maxAngle); // Linearly varies between two limits, clamped at limit values
+					targetAngle = controllerAngle;
+				}
+				else
+				{
+					if (vessel.speed <= minAirspeed) targetAngle = 0;
+					if (vessel.speed >= maxAirspeed) targetAngle = maxAngle;
+				}
+                if (targetAngle - Mathf.Abs(anglePosition) == 0) return;
+                enqueueRotation((targetAngle - Mathf.Abs(currentAngle)) * (reverseRotation ? -1 : 1), speed(), 0, !speedController);
+            }
+			else return;
+			/*
+			if (lastUsefulFixedUpdate < setupDoneAt) 
 				lastUsefulFixedUpdate = setupDoneAt;
-			} else if (frozenFlag || currentRotation() != null) {
+			else if (frozenFlag || currentRotation() != null || speedController) 
 				lastUsefulFixedUpdate = Time.frameCount;
-			} else if (Time.frameCount - lastUsefulFixedUpdate > 10) {
+			else if (Time.frameCount - lastUsefulFixedUpdate > 10) {
 				// log(part.desc(), ": disabling useless MonoBehaviour updates");
 				enabled = false;
 			}
+			*/
 		}
 
 		public string desc(bool bare = false)

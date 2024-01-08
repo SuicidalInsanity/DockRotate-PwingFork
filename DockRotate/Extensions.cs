@@ -6,7 +6,7 @@ using UnityEngine;
 namespace DockRotate
 {
 	public static class Extensions
-	{
+    {
 		/******** logging ********/
 
 		private static int framelast = 0;
@@ -14,6 +14,7 @@ namespace DockRotate
 
 		public static bool log(string msg1, string msg2 = "")
 		{
+#if DEBUG
 			int now = Time.frameCount;
 			if (msg2 == "") {
 				msg1last = "";
@@ -26,10 +27,8 @@ namespace DockRotate
 				}
 			}
 			Debug.Log("[DR:"
-#if DEBUG
-				+ "d:"
-#endif
 				+ now + "] " + msg1 + msg2);
+#endif
 			return true;
 		}
 
@@ -98,27 +97,12 @@ namespace DockRotate
 			return s > 1 ? part.name.Remove(s) : part.name;
 		}
 
-		public static List<AttachNode> allAttachNodes(this Part part, bool includeSrfAttach = true)
+		public static List<AttachNode> allAttachNodes(this Part part)
 		{
 			List<AttachNode> ret = new List<AttachNode>();
-			part.attachNodes.ForEach(n => {
-				if (n != null)
-					ret.Add(n);
-			});
-			if (includeSrfAttach && part.srfAttachNode != null)
+			if (part.srfAttachNode != null)
 				ret.Add(part.srfAttachNode);
-			return ret;
-		}
-
-		public static List<AttachNode> namedAttachNodes(this Part part, bool includeSrfAttach = true)
-		{
-			List<AttachNode> ret = new List<AttachNode>();
-			part.attachNodes.ForEach(n => {
-				if (n != null && n.id != "")
-					ret.Add(n);
-			});
-			if (includeSrfAttach && part.srfAttachNode != null && part.srfAttachNode.id != "")
-				ret.Add(part.srfAttachNode);
+			ret.AddRange(part.attachNodes);
 			return ret;
 		}
 
@@ -258,8 +242,8 @@ namespace DockRotate
 
 		public static bool matchType(this ModuleDockingNode node, ModuleDockingNode other)
 		{
-			node.fillNodeTypes();
-			other.fillNodeTypes();
+			fillNodeTypes(node);
+			fillNodeTypes(other);
 			return node.nodeTypes.Overlaps(other.nodeTypes);
 		}
 
@@ -366,7 +350,7 @@ namespace DockRotate
 				return "null";
 			return (bare ? "" : "AN:") + n.id + ":" + n.size
 				+ ":" + n.owner.desc(true)
-				+ ">" + (n.attachedPart ? n.attachedPart.desc(true) : "I" + n.attachedPartId);
+				+ ":" + (n.attachedPart ? n.attachedPart.desc(true) : "I" + n.attachedPartId);
 		}
 
 		/******** PartJoint utilities ********/
@@ -580,6 +564,6 @@ namespace DockRotate
 			return angle.ToString(isIdentity ? "F0" : "F1") + "\u00b0"
 				+ (isIdentity ? Vector3.zero : axis).desc();
 		}
-	}
+    }
 }
 
