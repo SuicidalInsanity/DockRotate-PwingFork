@@ -89,13 +89,13 @@ UI_FloatRange(minValue = 1, maxValue = 360, stepIncrement = 1, scene = UI_Scene.
 			guiActiveEditor = true, guiName = "SpeedController", active = true)]//Toggle Controller Enabled
 		public void ToggleSpeedController()
 		{
-			speedController = !speedController;
-			if (speedController) Events["ToggleSpeedController"].guiName = "SpeedController Enabled";
+			speedController = !speedController; 
+            if (speedController) Events["ToggleSpeedController"].guiName = "SpeedController Enabled";
             else Events["ToggleSpeedController"].guiName = "SpeedController Disabled";
             Fields["minAirspeed"].guiActive = speedController;
-			Fields["minAirspeed"].guiActiveEditor = speedController;
-			Fields["maxAirspeed"].guiActive = speedController;
-			Fields["maxAirspeed"].guiActiveEditor = speedController;
+            Fields["minAirspeed"].guiActiveEditor = speedController;
+            Fields["maxAirspeed"].guiActive = speedController;
+            Fields["maxAirspeed"].guiActiveEditor = speedController;
 
             Events["Rotate"].guiActive = !speedController;
             Events["RotateClockwise"].guiActive = !speedController;
@@ -110,19 +110,16 @@ UI_FloatRange(minValue = 1, maxValue = 360, stepIncrement = 1, scene = UI_Scene.
                     {
                         var rotor = pSym.Current.FindModuleImplementing<ModuleBaseRotate>();
                         if (rotor == null) continue;
-						rotor.speedController = speedController;
+                        rotor.speedController = speedController;
                         if (speedController) rotor.Events["ToggleSpeedController"].guiName = "SpeedController Enabled";
                         else rotor.Events["ToggleSpeedController"].guiName = "SpeedController Disabled";
                         rotor.Fields["minAirspeed"].guiActive = speedController;
                         rotor.Fields["minAirspeed"].guiActiveEditor = speedController;
                         rotor.Fields["maxAirspeed"].guiActive = speedController;
                         rotor.Fields["maxAirspeed"].guiActiveEditor = speedController;
-
                         rotor.Events["Rotate"].guiActive = !speedController;
                         rotor.Events["RotateClockwise"].guiActive = !speedController;
-                        rotor.Events["RotateCounterclockwise"].guiActive = !speedController;                       
-                            
-                        rotor.part.PartActionWindow.UpdateWindow();
+                        rotor.Events["RotateCounterclockwise"].guiActive = !speedController;
                     }
                 }
             part.PartActionWindow.UpdateWindow();
@@ -246,7 +243,7 @@ UI_FloatRange(minValue = 1, maxValue = 360, stepIncrement = 1, scene = UI_Scene.
 		{
 			if (!canStartRotation(true))
 				return;
-			if (!enqueueRotation(maxAngle * (rotateCCW ? -1 : 1) * (reverseRotation ? -1 : 1), speed(), 0, calledByButton))
+			if (!enqueueRotation(maxAngle * (rotateCCW ? -1 : 1) * (reverseRotation ? 1 : -1), speed(), 0, calledByButton))
 				return;
 		}
 
