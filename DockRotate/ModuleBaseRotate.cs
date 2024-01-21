@@ -692,7 +692,10 @@ UI_FloatRange(minValue = 1, maxValue = 360, stepIncrement = 1, scene = UI_Scene.
 
 				GameEvents.onSameVesselDock.Add(RightAfterSameVesselDock);
 				GameEvents.onSameVesselUndock.Add(RightAfterSameVesselUndock);
-			} else {
+
+                GameEvents.onPartDie.Add(OnPartDie);
+                GameEvents.onPartExplodeGroundCollision.Add(OnPartExplodeGroundCollision);
+            } else {
 				GameEvents.onActiveJointNeedUpdate.Remove(RightBeforeStructureChange_JointUpdate);
 
 				GameEvents.onEditorShipModified.Remove(RightAfterEditorChange_ShipModified);
@@ -713,7 +716,9 @@ UI_FloatRange(minValue = 1, maxValue = 360, stepIncrement = 1, scene = UI_Scene.
 
 				GameEvents.onSameVesselDock.Remove(RightAfterSameVesselDock);
 				GameEvents.onSameVesselUndock.Remove(RightAfterSameVesselUndock);
-			}
+                GameEvents.onPartDie.Remove(OnPartDie);
+                GameEvents.onPartExplodeGroundCollision.Remove(OnPartExplodeGroundCollision);
+            }
 
 			eventState = cmd;
 		}
@@ -974,7 +979,22 @@ UI_FloatRange(minValue = 1, maxValue = 360, stepIncrement = 1, scene = UI_Scene.
 			setEvents(false);
 		}
 
-		protected virtual void updateStatus(JointMotionObj cr)
+        bool stopHandlingEvents = false;
+        public void OnPartDie() => OnPartDie(part); // For part.Die()
+        public void OnPartDie(Part p)
+        {
+            if (p != part) return;
+            stopHandlingEvents = true;
+            setEvents(false);
+        }
+        public void OnPartExplodeGroundCollision(Part p)
+        {
+            if (p != part) return;
+            stopHandlingEvents = true;
+            setEvents(false);
+        }
+
+        protected virtual void updateStatus(JointMotionObj cr)
 		{
 			if (cr) {
 				angleInfo = String.Format(
