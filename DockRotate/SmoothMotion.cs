@@ -70,13 +70,14 @@ namespace DockRotate
 				onStop();
 		}
 
-		public void abort()
-		{
-			finished = true;
-			onStop();
-		}
+        public void abort()
+        {
+            finished = true;
+            if (started)
+                onStop();
+        }
 
-		public void brake()
+        public void brake()
 		{
 			tgt = pos + curBrakingSpace();
 			braking = true;
